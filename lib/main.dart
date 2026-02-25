@@ -1,122 +1,305 @@
+import 'dart:async';
+import 'dart:math';
+
 import 'package:flutter/material.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const BouncerApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class BouncerApp extends StatelessWidget {
+  const BouncerApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+    return const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: BouncerGame(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class BouncerGame extends StatefulWidget {
+  const BouncerGame({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<BouncerGame> createState() => _BouncerGameState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _BouncerGameState extends State<BouncerGame>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
 
-  void _incrementCounter() {
+  // Игровое поле
+  late double screenWidth;
+  late double screenHeight;
+
+  // Мяч
+  double ballX = 0;
+  double ballY = 0;
+  double ballRadius = 10;
+  double ballVX = 150;
+  double ballVY = -150;
+
+  // Платформа
+  double paddleWidth = 80;
+  double paddleHeight = 16;
+  double paddleY = 0;
+  double paddleX = 0;
+
+  // Акселерометр
+  StreamSubscription<AccelerometerEvent>? _accelSub;
+  double accelX = 0;
+
+  // Блоки
+  final int rows = 4;
+  final int cols = 6;
+  final double blockHeight = 20;
+  final double blockGap = 6;
+  late double blockWidth;
+  late List<List<bool>> blocksAlive;
+
+  bool isRunning = true;
+  String? statusText;
+
+  @override
+  void initState() {
+    super.initState();
+
+    blocksAlive = List.generate(rows, (_) => List.generate(cols, (_) => true));
+
+    // Стартовые значения
+    screenWidth = 400;
+    screenHeight = 800;
+    ballX = 200;
+    ballY = 400;
+    paddleX = 200;
+
+    // Контроллер анимации, ~60 fps
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(hours: 1),
+    )..addListener(_onTick);
+    _controller.repeat();
+
+    _accelSub =
+        accelerometerEventStream().listen((AccelerometerEvent event) {
+      accelX = event.x;
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _accelSub?.cancel();
+    super.dispose();
+  }
+
+  void _onTick() {
+    if (!mounted || !isRunning) return;
+
+    const double dt = 1 / 60;
+
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      // Платформа
+      const double paddleSpeed = 300;
+      paddleX += -accelX * paddleSpeed * dt;
+
+      final double half = paddleWidth / 2;
+      paddleX = paddleX.clamp(half, screenWidth - half);
+
+      // Мяч
+      ballX += ballVX * dt;
+      ballY += ballVY * dt;
+
+      // Стены
+      if (ballX - ballRadius <= 0 && ballVX < 0) {
+        ballX = ballRadius;
+        ballVX = -ballVX;
+      }
+      if (ballX + ballRadius >= screenWidth && ballVX > 0) {
+        ballX = screenWidth - ballRadius;
+        ballVX = -ballVX;
+      }
+      if (ballY - ballRadius <= 0 && ballVY < 0) {
+        ballY = ballRadius;
+        ballVY = -ballVY;
+      }
+
+      // Низ — проигрыш
+      if (ballY - ballRadius > screenHeight) {
+        isRunning = false;
+        statusText = 'You lost!';
+      }
+
+      // Платформа
+      final double paddleTop = paddleY;
+      final double paddleLeft = paddleX - half;
+      final double paddleRight = paddleX + half;
+
+      final bool hitPaddle = ballY + ballRadius >= paddleTop &&
+          ballY - ballRadius <= paddleTop + paddleHeight &&
+          ballX >= paddleLeft &&
+          ballX <= paddleRight &&
+          ballVY > 0;
+
+      if (hitPaddle) {
+        final double relative =
+            (ballX - paddleX) / (paddleWidth / 2);
+        final double speed = sqrt(ballVX * ballVX + ballVY * ballVY);
+        final double maxAngle = pi / 3;
+        final double angle = relative * maxAngle;
+
+        ballVY = -speed * cos(angle);
+        ballVX = speed * sin(angle);
+        ballY = paddleTop - ballRadius - 1;
+      }
+
+      _handleBlocksCollision();
+
+      if (blocksAlive.every((row) => row.every((b) => !b))) {
+        isRunning = false;
+        statusText = 'You Won!';
+      }
+    });
+  }
+
+  void _handleBlocksCollision() {
+    const double topOffset = 40;
+    for (int r = 0; r < rows; r++) {
+      for (int c = 0; c < cols; c++) {
+        if (!blocksAlive[r][c]) continue;
+
+        final double left = c * (blockWidth + blockGap) + blockGap;
+        final double top = topOffset + r * (blockHeight + blockGap);
+        final double right = left + blockWidth;
+        final double bottom = top + blockHeight;
+
+        final bool overlap =
+            ballX + ballRadius >= left &&
+            ballX - ballRadius <= right &&
+            ballY + ballRadius >= top &&
+            ballY - ballRadius <= bottom;
+
+        if (overlap) {
+          blocksAlive[r][c] = false;
+
+          final double overlapLeft = (ballX + ballRadius) - left;
+          final double overlapRight = right - (ballX - ballRadius);
+          final double overlapTop = (ballY + ballRadius) - top;
+          final double overlapBottom = bottom - (ballY - ballRadius);
+
+          final double minOverlap =
+              [overlapLeft, overlapRight, overlapTop, overlapBottom].reduce(min);
+
+          if (minOverlap == overlapLeft || minOverlap == overlapRight) {
+            ballVX = -ballVX;
+          } else {
+            ballVY = -ballVY;
+          }
+
+          return;
+        }
+      }
+    }
+  }
+
+  void _resetGame() {
+    setState(() {
+      isRunning = true;
+      statusText = null;
+      blocksAlive =
+          List.generate(rows, (_) => List.generate(cols, (_) => true));
+
+      ballX = screenWidth / 2;
+      ballY = screenHeight * 0.6;
+      ballVX = 150;
+      ballVY = -150;
+
+      paddleX = screenWidth / 2;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        screenWidth = constraints.maxWidth;
+        screenHeight = constraints.maxHeight;
+
+        blockWidth = (screenWidth - (cols + 1) * blockGap) / cols;
+        paddleY = screenHeight - 60;
+
+        return Scaffold(
+          backgroundColor: Colors.black,
+          body: Stack(
+            children: [
+              for (int r = 0; r < rows; r++)
+                for (int c = 0; c < cols; c++)
+                  if (blocksAlive[r][c])
+                    Positioned(
+                      left: c * (blockWidth + blockGap) + blockGap,
+                      top: 40 + r * (blockHeight + blockGap),
+                      width: blockWidth,
+                      height: blockHeight,
+                      child: Container(color: Colors.blueAccent),
+                    ),
+              Positioned(
+                left: ballX - ballRadius,
+                top: ballY - ballRadius,
+                width: ballRadius * 2,
+                height: ballRadius * 2,
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+              Positioned(
+                left: paddleX - paddleWidth / 2,
+                top: paddleY,
+                width: paddleWidth,
+                height: paddleHeight,
+                child: Container(color: Colors.redAccent),
+              ),
+              if (statusText != null)
+                Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        statusText!,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _resetGame,
+                        child: const Text('Restart'),
+                      ),
+                    ],
+                  ),
+                ),
+              Positioned(
+                left: 12,
+                top: 32,
+                child: Text(
+                  'tilt to move | accelX: ${accelX.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
