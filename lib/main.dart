@@ -8,6 +8,8 @@ void main() {
   runApp(const BouncerApp());
 }
 
+enum Difficulty { easy, normal, hard }
+
 class BouncerApp extends StatelessWidget {
   const BouncerApp({super.key});
 
@@ -24,13 +26,120 @@ class BouncerApp extends StatelessWidget {
         useMaterial3: true,
       ),
       debugShowCheckedModeBanner: false,
-      home: const BouncerGame(),
+      home: const MainMenuScreen(),
+    );
+  }
+}
+
+class MainMenuScreen extends StatefulWidget {
+  const MainMenuScreen({super.key});
+
+  @override
+  State<MainMenuScreen> createState() => _MainMenuScreenState();
+}
+
+class _MainMenuScreenState extends State<MainMenuScreen> {
+  Difficulty _selected = Difficulty.normal;
+
+  String _difficultyLabel(Difficulty d) {
+    switch (d) {
+      case Difficulty.easy:
+        return 'Easy';
+      case Difficulty.normal:
+        return 'Normal';
+      case Difficulty.hard:
+        return 'Hard';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'BOUNCER',
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 4,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Select difficulty',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: Colors.white70,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: Difficulty.values.map((d) {
+                  final bool active = d == _selected;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: ChoiceChip(
+                      label: Text(_difficultyLabel(d)),
+                      selected: active,
+                      onSelected: (_) {
+                        setState(() {
+                          _selected = d;
+                        });
+                      },
+                      selectedColor: const Color(0xFFFF3366),
+                      backgroundColor: Colors.white10,
+                      labelStyle: TextStyle(
+                        color: active ? Colors.white : Colors.white70,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => BouncerGame(difficulty: _selected),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFF3366),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 40,
+                    vertical: 14,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                ),
+                child: const Text(
+                  'Start',
+                  style: TextStyle(fontSize: 16, letterSpacing: 1.2),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
 
 class BouncerGame extends StatefulWidget {
-  const BouncerGame({super.key});
+  final Difficulty difficulty;
+
+  const BouncerGame({super.key, required this.difficulty});
 
   @override
   State<BouncerGame> createState() => _BouncerGameState();
@@ -39,7 +148,6 @@ class BouncerGame extends StatefulWidget {
 class _BouncerGameState extends State<BouncerGame>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
- 
 
   // Игровое поле
   late double screenWidth;
@@ -75,9 +183,30 @@ class _BouncerGameState extends State<BouncerGame>
   String? statusText;
   int score = 0;
 
+  void _applyDifficulty() {
+    switch (widget.difficulty) {
+      case Difficulty.easy:
+        ballVX = 120;
+        ballVY = -120;
+        paddleWidth = 100;
+        break;
+      case Difficulty.normal:
+        ballVX = 150;
+        ballVY = -150;
+        paddleWidth = 80;
+        break;
+      case Difficulty.hard:
+        ballVX = 190;
+        ballVY = -190;
+        paddleWidth = 65;
+        break;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    _applyDifficulty();
 
     // Блоки
     blocksAlive = List.generate(rows, (_) => List.generate(cols, (_) => true));
@@ -197,7 +326,8 @@ class _BouncerGameState extends State<BouncerGame>
   }
 
   void _handleBlocksCollision() {
-    const double topOffset = 90;
+    const double hudHeight = 165;
+    const double topOffset = hudHeight;
     for (int r = 0; r < rows; r++) {
       for (int c = 0; c < cols; c++) {
         if (!blocksAlive[r][c]) continue;
@@ -252,9 +382,7 @@ class _BouncerGameState extends State<BouncerGame>
 
       ballX = screenWidth / 2;
       ballY = screenHeight * 0.6;
-      ballVX = 150;
-      ballVY = -150;
-
+      _applyDifficulty();
       paddleX = screenWidth / 2;
       score = 0;
     });
@@ -268,8 +396,9 @@ class _BouncerGameState extends State<BouncerGame>
         screenHeight = constraints.maxHeight;
 
         blockWidth = (screenWidth - (cols + 1) * blockGap) / cols;
-        paddleY = screenHeight - 60;
+        paddleY = screenHeight - 160;
 
+        const double hudHeight = 165;
         final accelText = _lastAccel == null
             ? 'No accelerometer data'
             : 'X: ${_lastAccel!.x.toStringAsFixed(2)}, '
@@ -285,7 +414,7 @@ class _BouncerGameState extends State<BouncerGame>
                   if (blocksAlive[r][c])
                     Positioned(
                       left: c * (blockWidth + blockGap) + blockGap,
-                      top: 90 + r * (blockHeight + blockGap),
+                      top: hudHeight + r * (blockHeight + blockGap),
                       width: blockWidth,
                       height: blockHeight,
                       child: Container(color: _blockColorForRow(r)),
@@ -376,57 +505,76 @@ class _BouncerGameState extends State<BouncerGame>
               // Отладка акселерометра
               Positioned(
   left: 16,
-  top: 40,
+  top: 16,
   right: 16,
-  child: Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      // 1. Верхняя строка: название слева, счет справа
-      Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'BOUNCER',
-            style: TextStyle(
-              color: Colors.white.withAlpha((0.9 * 255).toInt()),
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 2,
+  child: SafeArea(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // 1. Самый верх: стрелка назад
+        Align(
+          alignment: Alignment.centerLeft,
+          child: IconButton(
+            icon: const Icon(
+              Icons.arrow_back,
+              color: Colors.white,
+              size: 20,
             ),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            onPressed: () {
+              Navigator.pop(context);
+            },
           ),
-          Text(
-            'Score: $score',
-            style: TextStyle(
-              color: Colors.white.withAlpha((0.9 * 255).toInt()),
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+        ),
+        const SizedBox(height: 4),
+        // 2. Вторая строка: BOUNCER + Score
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'BOUNCER',
+              style: TextStyle(
+                color: Colors.white.withAlpha((0.9 * 255).toInt()),
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 2,
+              ),
             ),
-          ),
-        ],
-      ),
-      const SizedBox(height: 4),
-      // 2. ВТОРАЯ строка: Tilt to move | акселерометр ВМЕСТЕ
-      Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'Tilt to move',
-            style: TextStyle(
-              color: Colors.white.withAlpha((0.7 * 255).toInt()),
-              fontSize: 12,
+            Text(
+              'Score: $score',
+              style: TextStyle(
+                color: Colors.white.withAlpha((0.9 * 255).toInt()),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
-          Text(
-            accelText,
-            textAlign: TextAlign.right,
-            style: TextStyle(
-              color: Colors.white.withAlpha((0.7 * 255).toInt()),
-              fontSize: 10,
+          ],
+        ),
+        const SizedBox(height: 4),
+        // 3. Третья строка: Tilt to move + акселерометр
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Tilt to move',
+              style: TextStyle(
+                color: Colors.white.withAlpha((0.7 * 255).toInt()),
+                fontSize: 12,
+              ),
+            ),
+            Text(
+              accelText,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: Colors.white.withAlpha((0.7 * 255).toInt()),
+                fontSize: 10,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
