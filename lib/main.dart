@@ -375,52 +375,53 @@ class _BouncerGameState extends State<BouncerGame>
 
               // Отладка акселерометра
               Positioned(
-                left: 16,
-                top: 40,
-                right: 16,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'BOUNCER',
-                          style: TextStyle(
-                            color: Colors.white.withAlpha((0.9 * 255).toInt()),
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 2,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Tilt to move',
-                          style: TextStyle(
-                            color: Colors.white.withAlpha((0.7 * 255).toInt()),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          'Score: $score',
-                          style: TextStyle(
-                            color: Colors.white.withAlpha((0.9 * 255).toInt()),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          accelText,
-                          textAlign: TextAlign.right,
-                          style: TextStyle(
-                            color: Colors.white.withAlpha((0.7 * 255).toInt()),
-                            fontSize: 10,
+  left: 16,
+  top: 40,
+  right: 16,
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      // 1. Верхняя строка: название слева, счет справа
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'BOUNCER',
+            style: TextStyle(
+              color: Colors.white.withAlpha((0.9 * 255).toInt()),
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 2,
+            ),
+          ),
+          Text(
+            'Score: $score',
+            style: TextStyle(
+              color: Colors.white.withAlpha((0.9 * 255).toInt()),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 4),
+      // 2. ВТОРАЯ строка: Tilt to move | акселерометр ВМЕСТЕ
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Tilt to move',
+            style: TextStyle(
+              color: Colors.white.withAlpha((0.7 * 255).toInt()),
+              fontSize: 12,
+            ),
+          ),
+          Text(
+            accelText,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              color: Colors.white.withAlpha((0.7 * 255).toInt()),
+              fontSize: 10,
                           ),
                         ),
                       ],
