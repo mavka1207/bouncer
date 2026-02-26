@@ -13,9 +13,20 @@ class BouncerApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
+      theme: ThemeData(
+        scaffoldBackgroundColor: const Color(0xFF050816),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFFFF3366),
+          brightness: Brightness.dark,
+        ),
+        textTheme: const TextTheme(
+          bodyMedium: TextStyle(color: Colors.white),
+        ),
+        useMaterial3: true,
+      ),
       debugShowCheckedModeBanner: false,
-      home: BouncerGame(),
+      home: const BouncerGame(),
     );
   }
 }
@@ -38,18 +49,19 @@ class _BouncerGameState extends State<BouncerGame>
   // Мяч
   double ballX = 0;
   double ballY = 0;
-  double ballRadius = 10;
+  final double ballRadius = 10;
   double ballVX = 150;
   double ballVY = -150;
 
   // Платформа
   double paddleWidth = 80;
-  double paddleHeight = 16;
+  final double paddleHeight = 16;
   double paddleY = 0;
   double paddleX = 0;
 
   // Акселерометр
   StreamSubscription<AccelerometerEvent>? _accelSub;
+  AccelerometerEvent? _lastAccel; // как в примере: храним последнее событие
   double accelX = 0;
 
   // Блоки
@@ -67,24 +79,27 @@ class _BouncerGameState extends State<BouncerGame>
   void initState() {
     super.initState();
 
+    // Блоки
     blocksAlive = List.generate(rows, (_) => List.generate(cols, (_) => true));
 
-    // Стартовые значения
+    // Временные размеры до первого build
     screenWidth = 400;
     screenHeight = 800;
     ballX = 200;
     ballY = 400;
     paddleX = 200;
 
-    // Контроллер анимации, ~60 fps
+    // Анимация ~60 fps
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(hours: 1),
     )..addListener(_onTick);
     _controller.repeat();
 
-    _accelSub =
-        accelerometerEventStream().listen((AccelerometerEvent event) {
+    // Подписка на акселерометр — как в примере
+    _accelSub = accelerometerEventStream().listen((event) {
+      // не вызываем setState каждый раз, чтобы не лагало UI
+      _lastAccel = event;
       accelX = event.x;
     });
   }
@@ -135,8 +150,9 @@ class _BouncerGameState extends State<BouncerGame>
 
       // Платформа
       final double paddleTop = paddleY;
-      final double paddleLeft = paddleX - half;
-      final double paddleRight = paddleX + half;
+      final double halfPaddle = paddleWidth / 2;
+      final double paddleLeft = paddleX - halfPaddle;
+      final double paddleRight = paddleX + halfPaddle;
 
       final bool hitPaddle = ballY + ballRadius >= paddleTop &&
           ballY - ballRadius <= paddleTop + paddleHeight &&
@@ -146,9 +162,9 @@ class _BouncerGameState extends State<BouncerGame>
 
       if (hitPaddle) {
         final double relative =
-            (ballX - paddleX) / (paddleWidth / 2);
+            (ballX - paddleX) / (paddleWidth / 2); // [-1, 1]
         final double speed = sqrt(ballVX * ballVX + ballVY * ballVY);
-        final double maxAngle = pi / 3;
+        const double maxAngle = pi / 3; // 60°
         final double angle = relative * maxAngle;
 
         ballVY = -speed * cos(angle);
@@ -164,6 +180,20 @@ class _BouncerGameState extends State<BouncerGame>
       }
     });
   }
+// Цвета блоков по рядам  
+  Color _blockColorForRow(int r) {
+    switch (r) {
+      case 0:
+        return const Color(0xFFFFD166); // жёлтый
+      case 1:
+        return const Color(0xFF06D6A0); // зелёный
+      case 2:
+        return const Color(0xFF118AB2); // синий
+      default:
+        return const Color(0xFFEF476F); // розово-красный
+    }
+  }
+
 
   void _handleBlocksCollision() {
     const double topOffset = 40;
@@ -231,10 +261,16 @@ class _BouncerGameState extends State<BouncerGame>
         blockWidth = (screenWidth - (cols + 1) * blockGap) / cols;
         paddleY = screenHeight - 60;
 
+        final accelText = _lastAccel == null
+            ? 'No accelerometer data'
+            : 'X: ${_lastAccel!.x.toStringAsFixed(2)}, '
+              'Y: ${_lastAccel!.y.toStringAsFixed(2)}, '
+              'Z: ${_lastAccel!.z.toStringAsFixed(2)}';
+
         return Scaffold(
-          backgroundColor: Colors.black,
           body: Stack(
             children: [
+              // Blocks
               for (int r = 0; r < rows; r++)
                 for (int c = 0; c < cols; c++)
                   if (blocksAlive[r][c])
@@ -243,57 +279,113 @@ class _BouncerGameState extends State<BouncerGame>
                       top: 40 + r * (blockHeight + blockGap),
                       width: blockWidth,
                       height: blockHeight,
-                      child: Container(color: Colors.blueAccent),
+                      child: Container(color: _blockColorForRow(r)),
                     ),
+
+              // Ball
               Positioned(
                 left: ballX - ballRadius,
                 top: ballY - ballRadius,
                 width: ballRadius * 2,
                 height: ballRadius * 2,
                 child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
+  decoration: BoxDecoration(
+    color: Colors.white,
+    shape: BoxShape.circle,
+    boxShadow: [
+      BoxShadow(
+        color: Colors.white.withAlpha((0.7 * 255).toInt()),
+        blurRadius: 8,
+        spreadRadius: 1,
+      ),
+    ],
+  ),
+
                 ),
               ),
+
+              // Платформа
               Positioned(
                 left: paddleX - paddleWidth / 2,
                 top: paddleY,
                 width: paddleWidth,
                 height: paddleHeight,
-                child: Container(color: Colors.redAccent),
+                child: Container(
+  decoration: BoxDecoration(
+    color: const Color(0xFFFF3366),
+    borderRadius: BorderRadius.circular(12),
+    boxShadow: [
+      BoxShadow(
+        color: const Color(0xFFFF3366).withAlpha((0.6 * 255).toInt()),
+        blurRadius: 10,
+        spreadRadius: 1,
+      ),
+    ],
+  ),
+),
               ),
+
+              // Статус
               if (statusText != null)
-                Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        statusText!,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _resetGame,
-                        child: const Text('Restart'),
+  Container(
+    color: Colors.black.withOpacity(0.5),
+    child: Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            statusText!,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.5,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton(
+            onPressed: _resetGame,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF3366),
+              foregroundColor: Colors.white,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+            child: const Text('Play again'),
                       ),
                     ],
                   ),
                 ),
+  ),
+
+              // Отладка акселерометра
               Positioned(
-                left: 12,
-                top: 32,
-                child: Text(
-                  'tilt to move | accelX: ${accelX.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
-                    fontSize: 14,
-                  ),
+  left: 12,
+  top: 32,
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        'BOUNCER',
+        style: TextStyle(
+          color: Colors.white.withAlpha((0.9 * 255).toInt()),
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 2,
+        ),
+      ),
+      const SizedBox(height: 4),
+      Text(
+        'Tilt to move',
+        style: TextStyle(
+          color: Colors.white.withAlpha((0.7 * 255).toInt()),
+          fontSize: 12,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
