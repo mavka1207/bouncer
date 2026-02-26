@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:sensors_plus/sensors_plus.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 void main() {
   runApp(const BouncerApp());
@@ -148,6 +149,7 @@ class BouncerGame extends StatefulWidget {
 class _BouncerGameState extends State<BouncerGame>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
+  late final AudioPlayer _sfx;
 
   // Игровое поле
   late double screenWidth;
@@ -203,10 +205,21 @@ class _BouncerGameState extends State<BouncerGame>
     }
   }
 
+  Future<void> _playHit() async {
+    await _sfx.play(AssetSource('sounds/hit.wav'));
+  }
+  Future<void> _playLose() async {
+    await _sfx.play(AssetSource('sounds/lose.wav'));
+  }
+  Future<void> _playWin() async {
+    await _sfx.play(AssetSource('sounds/win.wav'));
+}
+
   @override
   void initState() {
     super.initState();
     _applyDifficulty();
+    _sfx = AudioPlayer();
 
     // Блоки
     blocksAlive = List.generate(rows, (_) => List.generate(cols, (_) => true));
@@ -237,6 +250,7 @@ class _BouncerGameState extends State<BouncerGame>
   void dispose() {
     _controller.dispose();
     _accelSub?.cancel();
+    _sfx.dispose();
     super.dispose();
   }
 
@@ -275,6 +289,7 @@ class _BouncerGameState extends State<BouncerGame>
       if (ballY - ballRadius > screenHeight) {
         isRunning = false;
         statusText = 'You lost!';
+        _playLose();
       }
 
       // Платформа
@@ -307,6 +322,7 @@ class _BouncerGameState extends State<BouncerGame>
       if (blocksAlive.every((row) => row.every((b) => !b))) {
         isRunning = false;
         statusText = 'You Won!';
+        _playWin();
       }
     });
   }
@@ -346,6 +362,8 @@ class _BouncerGameState extends State<BouncerGame>
         if (overlap) {
           blocksAlive[r][c] = false;
           score += 10;
+          _playHit();
+         
 
           final double overlapLeft = (ballX + ballRadius) - left;
           final double overlapRight = right - (ballX - ballRadius);
@@ -504,71 +522,79 @@ class _BouncerGameState extends State<BouncerGame>
 
               // Отладка акселерометра
               Positioned(
-  left: 16,
-  top: 16,
-  right: 16,
-  child: SafeArea(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // 1. Самый верх: стрелка назад
-        Align(
-          alignment: Alignment.centerLeft,
-          child: IconButton(
-            icon: const Icon(
-              Icons.arrow_back,
-              color: Colors.white,
-              size: 20,
-            ),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-            onPressed: () {
-              Navigator.pop(context);
-            },
-          ),
-        ),
-        const SizedBox(height: 4),
-        // 2. Вторая строка: BOUNCER + Score
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'BOUNCER',
-              style: TextStyle(
-                color: Colors.white.withAlpha((0.9 * 255).toInt()),
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 2,
-              ),
-            ),
-            Text(
-              'Score: $score',
-              style: TextStyle(
-                color: Colors.white.withAlpha((0.9 * 255).toInt()),
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        // 3. Третья строка: Tilt to move + акселерометр
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Tilt to move',
-              style: TextStyle(
-                color: Colors.white.withAlpha((0.7 * 255).toInt()),
-                fontSize: 12,
-              ),
-            ),
-            Text(
-              accelText,
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                color: Colors.white.withAlpha((0.7 * 255).toInt()),
-                fontSize: 10,
+                left: 16,
+                top: 16,
+                right: 16,
+                child: SafeArea(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // 1. Самый верх: стрелка назад
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: IconButton(
+                          icon: const Icon(
+                            Icons.arrow_back,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      // 2. Вторая строка: BOUNCER + Score
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'BOUNCER',
+                            style: TextStyle(
+                              color: Colors.white.withAlpha(
+                                (0.9 * 255).toInt(),
+                              ),
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 2,
+                            ),
+                          ),
+                          Text(
+                            'Score: $score',
+                            style: TextStyle(
+                              color: Colors.white.withAlpha(
+                                (0.9 * 255).toInt(),
+                              ),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      // 3. Третья строка: Tilt to move + акселерометр
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Tilt to move',
+                            style: TextStyle(
+                              color: Colors.white.withAlpha(
+                                (0.7 * 255).toInt(),
+                              ),
+                              fontSize: 12,
+                            ),
+                          ),
+                          Text(
+                            accelText,
+                            textAlign: TextAlign.right,
+                            style: TextStyle(
+                              color: Colors.white.withAlpha(
+                                (0.7 * 255).toInt(),
+                              ),
+                              fontSize: 10,
                             ),
                           ),
                         ],
