@@ -20,9 +20,7 @@ class BouncerApp extends StatelessWidget {
           seedColor: const Color(0xFFFF3366),
           brightness: Brightness.dark,
         ),
-        textTheme: const TextTheme(
-          bodyMedium: TextStyle(color: Colors.white),
-        ),
+        textTheme: const TextTheme(bodyMedium: TextStyle(color: Colors.white)),
         useMaterial3: true,
       ),
       debugShowCheckedModeBanner: false,
@@ -41,6 +39,7 @@ class BouncerGame extends StatefulWidget {
 class _BouncerGameState extends State<BouncerGame>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
+ 
 
   // Игровое поле
   late double screenWidth;
@@ -74,6 +73,7 @@ class _BouncerGameState extends State<BouncerGame>
 
   bool isRunning = true;
   String? statusText;
+  int score = 0;
 
   @override
   void initState() {
@@ -154,7 +154,8 @@ class _BouncerGameState extends State<BouncerGame>
       final double paddleLeft = paddleX - halfPaddle;
       final double paddleRight = paddleX + halfPaddle;
 
-      final bool hitPaddle = ballY + ballRadius >= paddleTop &&
+      final bool hitPaddle =
+          ballY + ballRadius >= paddleTop &&
           ballY - ballRadius <= paddleTop + paddleHeight &&
           ballX >= paddleLeft &&
           ballX <= paddleRight &&
@@ -180,7 +181,8 @@ class _BouncerGameState extends State<BouncerGame>
       }
     });
   }
-// Цвета блоков по рядам  
+
+  // Цвета блоков по рядам
   Color _blockColorForRow(int r) {
     switch (r) {
       case 0:
@@ -193,7 +195,6 @@ class _BouncerGameState extends State<BouncerGame>
         return const Color(0xFFEF476F); // розово-красный
     }
   }
-
 
   void _handleBlocksCollision() {
     const double topOffset = 90;
@@ -214,14 +215,19 @@ class _BouncerGameState extends State<BouncerGame>
 
         if (overlap) {
           blocksAlive[r][c] = false;
+          score += 10;
 
           final double overlapLeft = (ballX + ballRadius) - left;
           final double overlapRight = right - (ballX - ballRadius);
           final double overlapTop = (ballY + ballRadius) - top;
           final double overlapBottom = bottom - (ballY - ballRadius);
 
-          final double minOverlap =
-              [overlapLeft, overlapRight, overlapTop, overlapBottom].reduce(min);
+          final double minOverlap = [
+            overlapLeft,
+            overlapRight,
+            overlapTop,
+            overlapBottom,
+          ].reduce(min);
 
           if (minOverlap == overlapLeft || minOverlap == overlapRight) {
             ballVX = -ballVX;
@@ -239,8 +245,10 @@ class _BouncerGameState extends State<BouncerGame>
     setState(() {
       isRunning = true;
       statusText = null;
-      blocksAlive =
-          List.generate(rows, (_) => List.generate(cols, (_) => true));
+      blocksAlive = List.generate(
+        rows,
+        (_) => List.generate(cols, (_) => true),
+      );
 
       ballX = screenWidth / 2;
       ballY = screenHeight * 0.6;
@@ -248,6 +256,7 @@ class _BouncerGameState extends State<BouncerGame>
       ballVY = -150;
 
       paddleX = screenWidth / 2;
+      score = 0;
     });
   }
 
@@ -264,8 +273,8 @@ class _BouncerGameState extends State<BouncerGame>
         final accelText = _lastAccel == null
             ? 'No accelerometer data'
             : 'X: ${_lastAccel!.x.toStringAsFixed(2)}, '
-              'Y: ${_lastAccel!.y.toStringAsFixed(2)}, '
-              'Z: ${_lastAccel!.z.toStringAsFixed(2)}';
+                  'Y: ${_lastAccel!.y.toStringAsFixed(2)}, '
+                  'Z: ${_lastAccel!.z.toStringAsFixed(2)}';
 
         return Scaffold(
           body: Stack(
@@ -289,18 +298,17 @@ class _BouncerGameState extends State<BouncerGame>
                 width: ballRadius * 2,
                 height: ballRadius * 2,
                 child: Container(
-  decoration: BoxDecoration(
-    color: Colors.white,
-    shape: BoxShape.circle,
-    boxShadow: [
-      BoxShadow(
-        color: Colors.white.withAlpha((0.7 * 255).toInt()),
-        blurRadius: 8,
-        spreadRadius: 1,
-      ),
-    ],
-  ),
-
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.white.withAlpha((0.7 * 255).toInt()),
+                        blurRadius: 8,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
@@ -311,55 +319,59 @@ class _BouncerGameState extends State<BouncerGame>
                 width: paddleWidth,
                 height: paddleHeight,
                 child: Container(
-  decoration: BoxDecoration(
-    color: const Color(0xFFFF3366),
-    borderRadius: BorderRadius.circular(12),
-    boxShadow: [
-      BoxShadow(
-        color: const Color(0xFFFF3366).withAlpha((0.6 * 255).toInt()),
-        blurRadius: 10,
-        spreadRadius: 1,
-      ),
-    ],
-  ),
-),
-              ),
-
-              // Статус
-              if (statusText != null)
-  Container(
-    color: Colors.black.withAlpha((0.5 * 255).toInt()),
-    child: Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            statusText!,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.5,
-            ),
-          ),
-          const SizedBox(height: 12),
-          ElevatedButton(
-            onPressed: _resetGame,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFF3366),
-              foregroundColor: Colors.white,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-            ),
-            child: const Text('Play again'),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF3366),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(
+                          0xFFFF3366,
+                        ).withAlpha((0.6 * 255).toInt()),
+                        blurRadius: 10,
+                        spreadRadius: 1,
                       ),
                     ],
                   ),
                 ),
-  ),
+              ),
+
+              // Статус
+              if (statusText != null)
+                Container(
+                  color: Colors.black.withAlpha((0.5 * 255).toInt()),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          statusText!,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton(
+                          onPressed: _resetGame,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFF3366),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                          child: const Text('Play again'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
 
               // Отладка акселерометра
               Positioned(
@@ -391,13 +403,27 @@ class _BouncerGameState extends State<BouncerGame>
                         ),
                       ],
                     ),
-                    Text(
-                      accelText,
-                      textAlign: TextAlign.right,
-                      style: TextStyle(
-                        color: Colors.white.withAlpha((0.7 * 255).toInt()),
-                        fontSize: 11,
-                      ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Score: $score',
+                          style: TextStyle(
+                            color: Colors.white.withAlpha((0.9 * 255).toInt()),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          accelText,
+                          textAlign: TextAlign.right,
+                          style: TextStyle(
+                            color: Colors.white.withAlpha((0.7 * 255).toInt()),
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -409,4 +435,3 @@ class _BouncerGameState extends State<BouncerGame>
     );
   }
 }
-
