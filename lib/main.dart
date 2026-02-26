@@ -196,7 +196,7 @@ class _BouncerGameState extends State<BouncerGame>
 
 
   void _handleBlocksCollision() {
-    const double topOffset = 40;
+    const double topOffset = 90;
     for (int r = 0; r < rows; r++) {
       for (int c = 0; c < cols; c++) {
         if (!blocksAlive[r][c]) continue;
@@ -276,7 +276,7 @@ class _BouncerGameState extends State<BouncerGame>
                   if (blocksAlive[r][c])
                     Positioned(
                       left: c * (blockWidth + blockGap) + blockGap,
-                      top: 40 + r * (blockHeight + blockGap),
+                      top: 90 + r * (blockHeight + blockGap),
                       width: blockWidth,
                       height: blockHeight,
                       child: Container(color: _blockColorForRow(r)),
@@ -328,7 +328,7 @@ class _BouncerGameState extends State<BouncerGame>
               // Статус
               if (statusText != null)
   Container(
-    color: Colors.black.withOpacity(0.5),
+    color: Colors.black.withAlpha((0.5 * 255).toInt()),
     child: Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -363,26 +363,40 @@ class _BouncerGameState extends State<BouncerGame>
 
               // Отладка акселерометра
               Positioned(
-  left: 12,
-  top: 32,
-  child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        'BOUNCER',
-        style: TextStyle(
-          color: Colors.white.withAlpha((0.9 * 255).toInt()),
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-          letterSpacing: 2,
-        ),
-      ),
-      const SizedBox(height: 4),
-      Text(
-        'Tilt to move',
-        style: TextStyle(
-          color: Colors.white.withAlpha((0.7 * 255).toInt()),
-          fontSize: 12,
+                left: 16,
+                top: 40,
+                right: 16,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'BOUNCER',
+                          style: TextStyle(
+                            color: Colors.white.withAlpha((0.9 * 255).toInt()),
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 2,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Tilt to move',
+                          style: TextStyle(
+                            color: Colors.white.withAlpha((0.7 * 255).toInt()),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      accelText,
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        color: Colors.white.withAlpha((0.7 * 255).toInt()),
+                        fontSize: 11,
                       ),
                     ),
                   ],
@@ -395,3 +409,4 @@ class _BouncerGameState extends State<BouncerGame>
     );
   }
 }
+
