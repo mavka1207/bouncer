@@ -174,29 +174,29 @@ class _BouncerGameState extends State<BouncerGame>
   late AnimationController _controller;
   late final AudioPlayer _sfx;
 
-  // Игровое поле
+  // Size screen
   late double screenWidth;
   late double screenHeight;
 
-  // Мяч
+  // Ball
   double ballX = 0;
   double ballY = 0;
   final double ballRadius = 10;
   double ballVX = 150;
   double ballVY = -150;
 
-  // Платформа
+  // Paddle
   double paddleWidth = 80;
   final double paddleHeight = 16;
   double paddleY = 0;
   double paddleX = 0;
 
-  // Акселерометр
+  // Accelerometer
   StreamSubscription<AccelerometerEvent>? _accelSub;
   AccelerometerEvent? _lastAccel; // как в примере: храним последнее событие
   double accelX = 0;
 
-  // Блоки
+  // Blocks
   final int rows = 4;
   final int cols = 6;
   final double blockHeight = 20;
@@ -219,7 +219,7 @@ class _BouncerGameState extends State<BouncerGame>
   double widenPaddleTimeLeft = 0; // в секундах
   double slowBallTimeLeft = 0;
 
-  // Base values (для восстановления при истечении power-up)
+  // Base values 
   double baseBallVX = 150;
   double baseBallVY = -150;
   double basePaddleWidth = 80;
@@ -243,7 +243,7 @@ class _BouncerGameState extends State<BouncerGame>
         break;
     }
 
-    // применять базу только если нет активных power-ups
+    // If power-ups are active, keep their effects on top of the difficulty
     if (widenPaddleTimeLeft <= 0) {
       paddleWidth = basePaddleWidth;
     }
@@ -274,24 +274,24 @@ class _BouncerGameState extends State<BouncerGame>
     _applyDifficulty();
     _sfx = AudioPlayer();
 
-    // Блоки
+    // Blocks 
     blocksAlive = List.generate(rows, (_) => List.generate(cols, (_) => true));
 
-    // Временные размеры до первого build
+    // Size screen (пока так, потом будет в LayoutBuilder) — нужно для начальных позиций и расчёта коллизий
     screenWidth = 400;
     screenHeight = 800;
     ballX = 200;
     ballY = 400;
     paddleX = 200;
 
-    // Анимация ~60 fps
+    // Animation for game loop
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(hours: 1),
     )..addListener(_onTick);
     _controller.repeat();
 
-    // Подписка на акселерометр — как в примере
+    // Stream for accelerometer
     _accelSub = accelerometerEventStream().listen((event) {
       // не вызываем setState каждый раз, чтобы не лагало UI
       _lastAccel = event;
@@ -313,18 +313,18 @@ class _BouncerGameState extends State<BouncerGame>
     const double dt = 1 / 60;
 
     setState(() {
-      // Платформа
+      // Paddle
       const double paddleSpeed = 300;
       paddleX += -accelX * paddleSpeed * dt;
 
       final double half = paddleWidth / 2;
       paddleX = paddleX.clamp(half, screenWidth - half);
 
-      // Мяч
+      // Ball
       ballX += ballVX * dt;
       ballY += ballVY * dt;
 
-      // Стены
+      // Walls
       if (ballX - ballRadius <= 0 && ballVX < 0) {
         ballX = ballRadius;
         ballVX = -ballVX;
@@ -338,14 +338,14 @@ class _BouncerGameState extends State<BouncerGame>
         ballVY = -ballVY;
       }
 
-      // Низ — проигрыш
+      // Down - lose
       if (ballY - ballRadius > screenHeight) {
         isRunning = false;
         statusText = 'You lost!';
         _playLose();
       }
 
-      // Платформа
+      // Paddle collision
       final double paddleTop = paddleY;
       final double halfPaddle = paddleWidth / 2;
       final double paddleLeft = paddleX - halfPaddle;
@@ -378,20 +378,20 @@ class _BouncerGameState extends State<BouncerGame>
         _playWin();
       }
 
-      // Обновляем power-ups
+      // Update power-ups
       for (int i = powerUps.length - 1; i >= 0; i--) {
         final p = powerUps[i];
 
-        // Падение вниз
+        // down
         p.y += powerUpFallSpeed * dt;
 
-        // Если ниже экрана — удаляем
+        // If power-up fell down the screen, remove it
         if (p.y - p.radius > screenHeight) {
           powerUps.removeAt(i);
           continue;
         }
 
-        // Проверка столкновения с платформой
+        // Check collision with paddle
         final double halfPaddle = paddleWidth / 2;
         final double paddleLeft = paddleX - halfPaddle;
         final double paddleRight = paddleX + halfPaddle;
@@ -410,11 +410,11 @@ class _BouncerGameState extends State<BouncerGame>
         }
       }
 
-      // Таймеры power-ups
+      // Timers for power-ups
       if (widenPaddleTimeLeft > 0) {
         widenPaddleTimeLeft -= dt;
         if (widenPaddleTimeLeft <= 0) {
-          // эффект закончился — вернуть ширину к сложности
+          // effect ended, return to base paddle width for difficulty
           _applyDifficulty();
         }
       }
@@ -422,24 +422,24 @@ class _BouncerGameState extends State<BouncerGame>
       if (slowBallTimeLeft > 0) {
         slowBallTimeLeft -= dt;
         if (slowBallTimeLeft <= 0) {
-          // вернуть скорость мяча к базовой для сложности
+          // return to base ball speed for difficulty
           _applyDifficulty();
         }
       }
     });
   }
 
-  // Цвета блоков по рядам
+  // Color for blocks based on row (можно потом расширить, добавить градиент или что-то ещё)  
   Color _blockColorForRow(int r) {
     switch (r) {
       case 0:
-        return const Color(0xFFFFD166); // жёлтый
+        return const Color(0xFFFFD166); // yellow
       case 1:
-        return const Color(0xFF06D6A0); // зелёный
+        return const Color(0xFF06D6A0); // green
       case 2:
-        return const Color(0xFF118AB2); // синий
+        return const Color(0xFF118AB2); // blue
       default:
-        return const Color(0xFFEF476F); // розово-красный
+        return const Color(0xFFEF476F); // red
     }
   }
 
@@ -468,11 +468,11 @@ class _BouncerGameState extends State<BouncerGame>
 
           if (_rng.nextDouble() < 0.25) {
             // 25% шанс
-            // Координата по центру блока
+            // Centre of the block
             final double centerX = (left + right) / 2;
             final double centerY = (top + bottom) / 2;
 
-            // Случайный тип
+            // Randomly choose power-up type
             final PowerUpType type = _rng.nextBool()
                 ? PowerUpType.widenPaddle
                 : PowerUpType.slowBall;
@@ -535,7 +535,7 @@ class _BouncerGameState extends State<BouncerGame>
     switch (type) {
       case PowerUpType.widenPaddle:
         setState(() {
-          // применяем эффект один раз
+          // add 30 pixels to current width, but don't exceed 60% of screen width
           paddleWidth = min(paddleWidth + 30, screenWidth * 0.6);
           widenPaddleTimeLeft = 5; // 5 секунд действия
         });
@@ -545,7 +545,7 @@ class _BouncerGameState extends State<BouncerGame>
         setState(() {
           ballVX *= 0.7;
           ballVY *= 0.7;
-          slowBallTimeLeft = 5; // 5 секунд действия
+          slowBallTimeLeft = 5; // 5 seconds duration
         });
         break;
     }
@@ -653,7 +653,7 @@ class _BouncerGameState extends State<BouncerGame>
                 ),
               ),
 
-              // Платформа
+              // Paddle
               Positioned(
                 left: paddleX - paddleWidth / 2,
                 top: paddleY,
@@ -676,7 +676,7 @@ class _BouncerGameState extends State<BouncerGame>
                 ),
               ),
 
-              // Статус
+              // Game over / win overlay
               if (statusText != null)
                 Container(
                   color: Colors.black.withAlpha((0.5 * 255).toInt()),
@@ -714,7 +714,7 @@ class _BouncerGameState extends State<BouncerGame>
                   ),
                 ),
 
-              // Отладка акселерометра
+              // HUD
               Positioned(
                 left: 16,
                 top: 16,
@@ -723,7 +723,7 @@ class _BouncerGameState extends State<BouncerGame>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // 1. Первая строка: назад + название + кнопки
+                      // 1. The first row: Title + pause/play + sound icons
                       Row(
                         children: [
                           IconButton(
@@ -783,7 +783,7 @@ class _BouncerGameState extends State<BouncerGame>
                       ),
                       const SizedBox(height: 4),
 
-                      // 2. Вторая строка: Score + иконки power-ups
+                      // 2. The second row: Score (можно потом добавить количество жизней или что-то ещё)
                       Row(
                         children: [
                           Text(
@@ -800,7 +800,7 @@ class _BouncerGameState extends State<BouncerGame>
                       ),
                       const SizedBox(height: 4),
 
-                      // 3. Третья строка: Tilt + (акселерометр можно мелким шрифтом)
+                      // 3. The third row: Instructions + accelerometer data (можно потом убрать, или сделать более лаконично, или добавить там что-то ещё)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
