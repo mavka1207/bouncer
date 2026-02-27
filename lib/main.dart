@@ -512,33 +512,6 @@ class _BouncerGameState extends State<BouncerGame>
     }
   }
 
-  Widget _powerUpIcon({
-    required IconData icon,
-    String label = '',
-    required bool active,
-    required Color color,
-  }) {
-    final Color base = active ? color : Colors.white24;
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 12, color: base),
-        if (label.isNotEmpty) ...[
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              color: base,
-              fontWeight: active ? FontWeight.w600 : FontWeight.normal,
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -604,17 +577,18 @@ class _BouncerGameState extends State<BouncerGame>
                   child: Container(
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        colors: p.type == PowerUpType.widenPaddle
-                            ? [Colors.greenAccent, Colors.green]
-                            : [Colors.blueAccent, Colors.blue],
-                      ),
+                      color: Colors.black.withAlpha((0.4 * 255).toInt()),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withAlpha((0.5 * 255).toInt()),
                           blurRadius: 4,
                         ),
                       ],
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      p.type == PowerUpType.widenPaddle ? '⬅️➡️' : '🐌',
+                      style: TextStyle(fontSize: p.radius + 6),
                     ),
                   ),
                 ),
@@ -782,21 +756,6 @@ class _BouncerGameState extends State<BouncerGame>
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          // маленькие цветные кружки-состояния power-ups
-                          _powerUpIcon(
-                            icon: Icons.circle,
-                            label: '',
-                            active: hasWidenPaddle,
-                            color: Colors.greenAccent,
-                          ),
-                          const SizedBox(width: 6),
-                          _powerUpIcon(
-                            icon: Icons.circle,
-                            label: '',
-                            active: hasSlowBall,
-                            color: Colors.lightBlueAccent,
                           ),
                         ],
                       ),
