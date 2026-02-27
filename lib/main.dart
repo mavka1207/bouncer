@@ -137,6 +137,24 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
   }
 }
 
+// Power-ups
+class PowerUp {
+  double x; // centre
+  double y;
+  final double radius;
+  final PowerUpType type;
+  double vY = 80;
+
+  PowerUp({
+    required this.x,
+    required this.y,
+    required this.radius,
+    required this.type,
+  });
+}
+
+enum PowerUpType { widenPaddle, slowBall }
+
 class BouncerGame extends StatefulWidget {
   final Difficulty difficulty;
 
@@ -186,6 +204,14 @@ class _BouncerGameState extends State<BouncerGame>
   String? statusText;
   int score = 0;
 
+  // Power-ups
+  final List<PowerUp> powerUps = [];
+  final double powerUpFallSpeed = 120; // px / s
+  final double powerUpRadius = 10;
+  final Random _rng = Random();
+  bool hasWidenPaddle = false;
+  bool hasSlowBall = false;
+
   void _applyDifficulty() {
     switch (widget.difficulty) {
       case Difficulty.easy:
@@ -210,14 +236,16 @@ class _BouncerGameState extends State<BouncerGame>
     if (!isSoundOn) return;
     await _sfx.play(AssetSource('sounds/hit.wav'));
   }
+
   Future<void> _playLose() async {
     if (!isSoundOn) return;
     await _sfx.play(AssetSource('sounds/lose.wav'));
   }
+
   Future<void> _playWin() async {
-    if (!isSoundOn) return; 
+    if (!isSoundOn) return;
     await _sfx.play(AssetSource('sounds/win.wav'));
-}
+  }
 
   @override
   void initState() {
@@ -328,6 +356,38 @@ class _BouncerGameState extends State<BouncerGame>
         statusText = 'You Won!';
         _playWin();
       }
+
+      // Обновляем power-ups
+      for (int i = powerUps.length - 1; i >= 0; i--) {
+        final p = powerUps[i];
+
+        // Падение вниз
+        p.y += powerUpFallSpeed * dt;
+
+        // Если ниже экрана — удаляем
+        if (p.y - p.radius > screenHeight) {
+          powerUps.removeAt(i);
+          continue;
+        }
+
+        // Проверка столкновения с платформой
+        final double halfPaddle = paddleWidth / 2;
+        final double paddleLeft = paddleX - halfPaddle;
+        final double paddleRight = paddleX + halfPaddle;
+        final double paddleTop = paddleY;
+        final double paddleBottom = paddleY + paddleHeight;
+
+        final bool hitPaddle =
+            p.x + p.radius >= paddleLeft &&
+            p.x - p.radius <= paddleRight &&
+            p.y + p.radius >= paddleTop &&
+            p.y - p.radius <= paddleBottom;
+
+        if (hitPaddle) {
+          _applyPowerUp(p.type);
+          powerUps.removeAt(i);
+        }
+      }
     });
   }
 
@@ -367,7 +427,27 @@ class _BouncerGameState extends State<BouncerGame>
           blocksAlive[r][c] = false;
           score += 10;
           _playHit();
-         
+
+          if (_rng.nextDouble() < 0.25) {
+            // 25% шанс
+            // Координата по центру блока
+            final double centerX = (left + right) / 2;
+            final double centerY = (top + bottom) / 2;
+
+            // Случайный тип
+            final PowerUpType type = _rng.nextBool()
+                ? PowerUpType.widenPaddle
+                : PowerUpType.slowBall;
+
+            powerUps.add(
+              PowerUp(
+                x: centerX,
+                y: centerY,
+                radius: powerUpRadius,
+                type: type,
+              ),
+            );
+          }
 
           final double overlapLeft = (ballX + ballRadius) - left;
           final double overlapRight = right - (ballX - ballRadius);
@@ -407,7 +487,56 @@ class _BouncerGameState extends State<BouncerGame>
       _applyDifficulty();
       paddleX = screenWidth / 2;
       score = 0;
+      powerUps.clear();
+      hasWidenPaddle = false;
+      hasSlowBall = false;
     });
+  }
+
+  void _applyPowerUp(PowerUpType type) {
+    switch (type) {
+      case PowerUpType.widenPaddle:
+        setState(() {
+          paddleWidth = min(paddleWidth + 30, screenWidth * 0.6);
+          hasWidenPaddle = true;
+        });
+        break;
+
+      case PowerUpType.slowBall:
+        setState(() {
+          ballVX *= 0.7;
+          ballVY *= 0.7;
+          hasSlowBall = true;
+        });
+        break;
+    }
+  }
+
+  Widget _powerUpIcon({
+    required IconData icon,
+    String label = '',
+    required bool active,
+    required Color color,
+  }) {
+    final Color base = active ? color : Colors.white24;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: base),
+        if (label.isNotEmpty) ...[
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: base,
+              fontWeight: active ? FontWeight.w600 : FontWeight.normal,
+            ),
+          ),
+        ],
+      ],
+    );
   }
 
   @override
@@ -428,38 +557,67 @@ class _BouncerGameState extends State<BouncerGame>
                   'Z: ${_lastAccel!.z.toStringAsFixed(2)}';
 
         return Scaffold(
-  body: Stack(
-    children: [
-      // Blocks
-      for (int r = 0; r < rows; r++)
-        for (int c = 0; c < cols; c++)
-          if (blocksAlive[r][c])
-            Positioned(
-              left: c * (blockWidth + blockGap) + blockGap,
-              top: hudHeight + r * (blockHeight + blockGap),
-              width: blockWidth,
-              height: blockHeight,
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(6),
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      _blockColorForRow(r).withAlpha((0.9 * 255).toInt()),
-                      _blockColorForRow(r),
-                    ],
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withAlpha((0.4 * 255).toInt()),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
+          body: Stack(
+            children: [
+              // Blocks
+              for (int r = 0; r < rows; r++)
+                for (int c = 0; c < cols; c++)
+                  if (blocksAlive[r][c])
+                    Positioned(
+                      left: c * (blockWidth + blockGap) + blockGap,
+                      top: hudHeight + r * (blockHeight + blockGap),
+                      width: blockWidth,
+                      height: blockHeight,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(6),
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              _blockColorForRow(
+                                r,
+                              ).withAlpha((0.9 * 255).toInt()),
+                              _blockColorForRow(r),
+                            ],
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withAlpha(
+                                (0.4 * 255).toInt(),
+                              ),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ],
+
+              // Power-ups
+              for (final p in powerUps)
+                Positioned(
+                  left: p.x - p.radius,
+                  top: p.y - p.radius,
+                  width: p.radius * 2,
+                  height: p.radius * 2,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: p.type == PowerUpType.widenPaddle
+                            ? [Colors.greenAccent, Colors.green]
+                            : [Colors.blueAccent, Colors.blue],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha((0.5 * 255).toInt()),
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ),
 
               // Ball
               Positioned(
@@ -552,27 +710,22 @@ class _BouncerGameState extends State<BouncerGame>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // 1. Самый верх: стрелка назад
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: IconButton(
-                          icon: const Icon(
-                            Icons.arrow_back,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          onPressed: () {
-                            Navigator.pop(context);
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      // 2. Вторая строка: BOUNCER + Score
+                      // 1. Первая строка: назад + название + кнопки
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
+                          IconButton(
+                            icon: const Icon(
+                              Icons.arrow_back,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: () {
+                              Navigator.pop(context);
+                            },
+                          ),
+                          const SizedBox(width: 4),
                           Text(
                             'BOUNCER',
                             style: TextStyle(
@@ -585,6 +738,41 @@ class _BouncerGameState extends State<BouncerGame>
                             ),
                           ),
                           const Spacer(),
+                          IconButton(
+                            icon: Icon(
+                              isRunning ? Icons.pause : Icons.play_arrow,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: () {
+                              setState(() {
+                                isRunning = !isRunning;
+                              });
+                            },
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              isSoundOn ? Icons.volume_up : Icons.volume_off,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: () {
+                              setState(() {
+                                isSoundOn = !isSoundOn;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+
+                      // 2. Вторая строка: Score + иконки power-ups
+                      Row(
+                        children: [
                           Text(
                             'Score: $score',
                             style: TextStyle(
@@ -595,40 +783,26 @@ class _BouncerGameState extends State<BouncerGame>
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(width: 8),
-    IconButton(
-      icon: Icon(
-        isRunning ? Icons.pause : Icons.play_arrow,
-        color: Colors.white,
-        size: 20,
-      ),
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(),
-      onPressed: () {
-        setState(() {
-          isRunning = !isRunning;
-        });
-      },
-    ),
-    // Sound on/off
-    IconButton(
-      icon: Icon(
-        isSoundOn ? Icons.volume_up : Icons.volume_off,
-        color: Colors.white,
-        size: 20,
-      ),
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(),
-      onPressed: () {
-        setState(() {
-          isSoundOn = !isSoundOn;
-        });
-      },
-     )
+                          const SizedBox(width: 12),
+                          // маленькие цветные кружки-состояния power-ups
+                          _powerUpIcon(
+                            icon: Icons.circle,
+                            label: '',
+                            active: hasWidenPaddle,
+                            color: Colors.greenAccent,
+                          ),
+                          const SizedBox(width: 6),
+                          _powerUpIcon(
+                            icon: Icons.circle,
+                            label: '',
+                            active: hasSlowBall,
+                            color: Colors.lightBlueAccent,
+                          ),
                         ],
                       ),
                       const SizedBox(height: 4),
-                      // 3. Третья строка: Tilt to move + акселерометр
+
+                      // 3. Третья строка: Tilt + (акселерометр можно мелким шрифтом)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -646,9 +820,9 @@ class _BouncerGameState extends State<BouncerGame>
                             textAlign: TextAlign.right,
                             style: TextStyle(
                               color: Colors.white.withAlpha(
-                                (0.7 * 255).toInt(),
+                                (0.5 * 255).toInt(),
                               ),
-                              fontSize: 10,
+                              fontSize: 9,
                             ),
                           ),
                         ],
