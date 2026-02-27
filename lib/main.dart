@@ -182,6 +182,7 @@ class _BouncerGameState extends State<BouncerGame>
   late List<List<bool>> blocksAlive;
 
   bool isRunning = true;
+  bool isSoundOn = true;
   String? statusText;
   int score = 0;
 
@@ -206,12 +207,15 @@ class _BouncerGameState extends State<BouncerGame>
   }
 
   Future<void> _playHit() async {
+    if (!isSoundOn) return;
     await _sfx.play(AssetSource('sounds/hit.wav'));
   }
   Future<void> _playLose() async {
+    if (!isSoundOn) return;
     await _sfx.play(AssetSource('sounds/lose.wav'));
   }
   Future<void> _playWin() async {
+    if (!isSoundOn) return; 
     await _sfx.play(AssetSource('sounds/win.wav'));
 }
 
@@ -587,6 +591,21 @@ class _BouncerGameState extends State<BouncerGame>
         });
       },
     ),
+    // Sound on/off
+    IconButton(
+      icon: Icon(
+        isSoundOn ? Icons.volume_up : Icons.volume_off,
+        color: Colors.white,
+        size: 20,
+      ),
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(),
+      onPressed: () {
+        setState(() {
+          isSoundOn = !isSoundOn;
+        });
+      },
+     )
                         ],
                       ),
                       const SizedBox(height: 4),
