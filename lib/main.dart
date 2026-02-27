@@ -2,10 +2,15 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:audioplayers/audioplayers.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+
   runApp(const BouncerApp());
 }
 
@@ -211,24 +216,40 @@ class _BouncerGameState extends State<BouncerGame>
   final Random _rng = Random();
   bool hasWidenPaddle = false;
   bool hasSlowBall = false;
+  double widenPaddleTimeLeft = 0; // в секундах
+  double slowBallTimeLeft = 0;
+
+  // Base values (для восстановления при истечении power-up)
+  double baseBallVX = 150;
+  double baseBallVY = -150;
+  double basePaddleWidth = 80;
 
   void _applyDifficulty() {
     switch (widget.difficulty) {
       case Difficulty.easy:
-        ballVX = 120;
-        ballVY = -120;
-        paddleWidth = 100;
+        baseBallVX = 120;
+        baseBallVY = -120;
+        basePaddleWidth = 100;
         break;
       case Difficulty.normal:
-        ballVX = 150;
-        ballVY = -150;
-        paddleWidth = 80;
+        baseBallVX = 150;
+        baseBallVY = -150;
+        basePaddleWidth = 80;
         break;
       case Difficulty.hard:
-        ballVX = 190;
-        ballVY = -190;
-        paddleWidth = 65;
+        baseBallVX = 190;
+        baseBallVY = -190;
+        basePaddleWidth = 65;
         break;
+    }
+
+    // применять базу только если нет активных power-ups
+    if (widenPaddleTimeLeft <= 0) {
+      paddleWidth = basePaddleWidth;
+    }
+    if (slowBallTimeLeft <= 0) {
+      ballVX = baseBallVX;
+      ballVY = baseBallVY;
     }
   }
 
@@ -388,6 +409,23 @@ class _BouncerGameState extends State<BouncerGame>
           powerUps.removeAt(i);
         }
       }
+
+      // Таймеры power-ups
+      if (widenPaddleTimeLeft > 0) {
+        widenPaddleTimeLeft -= dt;
+        if (widenPaddleTimeLeft <= 0) {
+          // эффект закончился — вернуть ширину к сложности
+          _applyDifficulty();
+        }
+      }
+
+      if (slowBallTimeLeft > 0) {
+        slowBallTimeLeft -= dt;
+        if (slowBallTimeLeft <= 0) {
+          // вернуть скорость мяча к базовой для сложности
+          _applyDifficulty();
+        }
+      }
     });
   }
 
@@ -497,8 +535,9 @@ class _BouncerGameState extends State<BouncerGame>
     switch (type) {
       case PowerUpType.widenPaddle:
         setState(() {
+          // применяем эффект один раз
           paddleWidth = min(paddleWidth + 30, screenWidth * 0.6);
-          hasWidenPaddle = true;
+          widenPaddleTimeLeft = 5; // 5 секунд действия
         });
         break;
 
@@ -506,7 +545,7 @@ class _BouncerGameState extends State<BouncerGame>
         setState(() {
           ballVX *= 0.7;
           ballVY *= 0.7;
-          hasSlowBall = true;
+          slowBallTimeLeft = 5; // 5 секунд действия
         });
         break;
     }
