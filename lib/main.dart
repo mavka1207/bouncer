@@ -428,19 +428,38 @@ class _BouncerGameState extends State<BouncerGame>
                   'Z: ${_lastAccel!.z.toStringAsFixed(2)}';
 
         return Scaffold(
-          body: Stack(
-            children: [
-              // Blocks
-              for (int r = 0; r < rows; r++)
-                for (int c = 0; c < cols; c++)
-                  if (blocksAlive[r][c])
-                    Positioned(
-                      left: c * (blockWidth + blockGap) + blockGap,
-                      top: hudHeight + r * (blockHeight + blockGap),
-                      width: blockWidth,
-                      height: blockHeight,
-                      child: Container(color: _blockColorForRow(r)),
+  body: Stack(
+    children: [
+      // Blocks
+      for (int r = 0; r < rows; r++)
+        for (int c = 0; c < cols; c++)
+          if (blocksAlive[r][c])
+            Positioned(
+              left: c * (blockWidth + blockGap) + blockGap,
+              top: hudHeight + r * (blockHeight + blockGap),
+              width: blockWidth,
+              height: blockHeight,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(6),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      _blockColorForRow(r).withAlpha((0.9 * 255).toInt()),
+                      _blockColorForRow(r),
+                    ],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withAlpha((0.4 * 255).toInt()),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
                     ),
+                  ],
+                ),
+              ),
+            ),
 
               // Ball
               Positioned(
