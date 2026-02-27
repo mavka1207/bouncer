@@ -561,6 +561,7 @@ class _BouncerGameState extends State<BouncerGame>
                               letterSpacing: 2,
                             ),
                           ),
+                          const Spacer(),
                           Text(
                             'Score: $score',
                             style: TextStyle(
@@ -571,6 +572,21 @@ class _BouncerGameState extends State<BouncerGame>
                               fontWeight: FontWeight.w600,
                             ),
                           ),
+                          const SizedBox(width: 8),
+    IconButton(
+      icon: Icon(
+        isRunning ? Icons.pause : Icons.play_arrow,
+        color: Colors.white,
+        size: 20,
+      ),
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(),
+      onPressed: () {
+        setState(() {
+          isRunning = !isRunning;
+        });
+      },
+    ),
                         ],
                       ),
                       const SizedBox(height: 4),
